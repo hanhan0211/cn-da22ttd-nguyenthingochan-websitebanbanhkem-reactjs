@@ -19,7 +19,8 @@ import {
 import HomePage from "./pages/HomePage";
 import ProductPage from "./pages/ProductPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
-import CartPage from "./pages/CartPage"; // ✅ ĐÃ THÊM IMPORT NÀY
+import CartPage from "./pages/CartPage"; 
+import CheckoutPage from "./pages/CheckoutPage";// ✅ ĐÃ THÊM IMPORT NÀY
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -166,6 +167,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/san-pham" element={<ProductPage />} />
         <Route path="/san-pham/:slug" element={<ProductDetailPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
         
         {/* Route Giỏ hàng */}
         <Route path="/cart" element={<CartPage />} />

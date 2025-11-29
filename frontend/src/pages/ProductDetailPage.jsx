@@ -235,9 +235,7 @@ const ProductDetailPage = () => {
                             </span>
                         )}
                         {/* ✅ LUÔN HIỂN THỊ CÒN HÀNG (BỎ CHECK STOCK) */}
-                        <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full border border-green-100">
-                            <Check size={14} strokeWidth={3} /> Còn hàng
-                        </span>
+                      
                     </div>
 
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 font-serif leading-tight">{product.name}</h1>
