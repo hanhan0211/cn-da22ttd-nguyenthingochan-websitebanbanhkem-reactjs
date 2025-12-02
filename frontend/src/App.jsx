@@ -19,6 +19,7 @@ import {
 
 import HomePage from "./pages/HomePage";
 import ProductPage from "./pages/ProductPage";
+import ContactPage from "./pages/ContactPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import CartPage from "./pages/CartPage"; 
 import CheckoutPage from "./pages/CheckoutPage";
@@ -35,6 +36,7 @@ import Dashboard from "./pages/admin/Dashboard";
 import ProductManager from "./pages/admin/ProductManager";
 import CategoryManager from "./pages/admin/CategoryManager";
 import OrderManager from "./pages/admin/OrderManager";
+import ContactManager from "./pages/admin/ContactManager";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -100,6 +102,7 @@ function App() {
           <div className="hidden md:flex space-x-8 font-medium text-gray-600">
             <Link to="/" className="hover:text-pink-600 transition">Trang chủ</Link>
             <Link to="/san-pham" className="hover:text-pink-600 transition">Sản phẩm</Link>
+            <Link to="/lien-he" className="hover:text-pink-600 transition">Liên hệ</Link>
           </div>
 
           <div className="flex items-center space-x-6">
@@ -178,6 +181,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/san-pham" element={<ProductPage />} />
+        <Route path="/lien-he" element={<ContactPage />} />
         <Route path="/san-pham/:slug" element={<ProductDetailPage />} />
         
         {/* ✅ ROUTE THANH TOÁN & ĐƠN HÀNG */}
@@ -196,6 +200,7 @@ function App() {
           <Route path="products" element={<ProductManager />} />
           <Route path="categories" element={<CategoryManager />} />
           <Route path="orders" element={<OrderManager />} />
+          <Route path="contacts" element={<ContactManager />} />
         </Route>
 
         <Route path="*" element={<div className="text-center py-20">404 - Không tìm thấy trang</div>} />

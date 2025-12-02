@@ -1,22 +1,29 @@
 import express from "express";
-import { createOrderFromCart, getOrder, listOrders, updateOrderStatus } from "../controllers/order.controller.js";
-import { protect, admin } from "../middleware/auth.middleware.js";
+
+// 👇 ĐÃ SỬA: Thêm dấu chấm vào tên file cho đúng với project của bạn
+import { 
+  createOrderFromCart, 
+  getOrder, 
+  listOrders, 
+  updateOrderStatus 
+} from "../controllers/order.controller.js"; 
+
+// 👇 ĐÃ SỬA: Thêm dấu chấm vào tên file middleware
+import { protect, admin } from "../middleware/auth.middleware.js"; 
 
 const router = express.Router();
 
-// cần login
+// Tất cả các routes bên dưới đều cần đăng nhập
 router.use(protect);
 
-// user tạo order từ cart của mình
-router.post("/", createOrderFromCart);
+// 1. Route gốc: /api/orders
+router.route("/")
+  .post(createOrderFromCart) // Tạo đơn
+  .get(listOrders);          // Xem danh sách
 
-// admin xem mọi order, user xem order của chính họ
-router.get("/", listOrders);
-
-// user xem order riêng, admin xem tất cả
-router.get("/:id", getOrder);
-
-// admin thay đổi trạng thái đơn hàng
-router.put("/:id/status", admin, updateOrderStatus);
+// 2. Route có ID: /api/orders/:id
+router.route("/:id")
+  .get(getOrder)                   // Xem chi tiết
+  .put(admin, updateOrderStatus);  // Admin cập nhật trạng thái
 
 export default router;

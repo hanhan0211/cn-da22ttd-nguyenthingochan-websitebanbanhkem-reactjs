@@ -54,7 +54,7 @@ const ProductPage = () => {
                     category: categoryId || undefined,
                     flavor: flavorFilter || undefined, // ✅ Gửi flavor lên server
                     page: page, 
-                    limit: 9,  
+                    limit: 6,  
                     maxPrice: maxPriceFilter < 1000000 ? maxPriceFilter : undefined
                 };
 

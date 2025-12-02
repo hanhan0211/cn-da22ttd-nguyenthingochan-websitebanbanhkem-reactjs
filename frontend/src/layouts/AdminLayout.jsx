@@ -1,18 +1,31 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-// ✅ Import thêm icon Package
-import { LayoutDashboard, ShoppingBag, Layers, LogOut, Home, Package } from 'lucide-react';
+// ✅ 1. Thêm useNavigate vào import
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, ShoppingBag, Layers, LogOut, Home, Package, Mail } from 'lucide-react';
 
 const AdminLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate(); // ✅ 2. Khai báo hook điều hướng
 
   const menuItems = [
     { path: '/admin', icon: <LayoutDashboard size={20} />, label: 'Thống kê' },
-    // ✅ THÊM MENU QUẢN LÝ ĐƠN HÀNG Ở ĐÂY
+    { path: '/admin/contacts', icon: <Mail size={20} />, label: 'Liên hệ' },
     { path: '/admin/orders', icon: <Package size={20} />, label: 'Đơn hàng' },
     { path: '/admin/products', icon: <ShoppingBag size={20} />, label: 'Sản phẩm' },
     { path: '/admin/categories', icon: <Layers size={20} />, label: 'Danh mục' },
   ];
+
+  // ✅ 3. Hàm xử lý đăng xuất
+  const handleLogout = () => {
+    if (window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
+      // Xóa thông tin lưu trong máy
+      localStorage.removeItem("ACCESS_TOKEN");
+      localStorage.removeItem("USER_INFO");
+      
+      // Chuyển hướng về trang đăng nhập
+      navigate("/login");
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
@@ -28,7 +41,6 @@ const AdminLayout = () => {
               key={item.path}
               to={item.path}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                // Logic kiểm tra active menu
                 (item.path === '/admin' && location.pathname === '/admin') || 
                 (item.path !== '/admin' && location.pathname.startsWith(item.path))
                   ? 'bg-pink-600 text-white shadow-lg shadow-pink-500/30' 
@@ -44,7 +56,12 @@ const AdminLayout = () => {
           <Link to="/" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition">
             <Home size={20} /> Về Website
           </Link>
-          <button className="flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 transition w-full text-left">
+          
+          {/* ✅ 4. Gắn sự kiện onClick vào nút này */}
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 transition w-full text-left"
+          >
             <LogOut size={20} /> Đăng xuất
           </button>
         </div>
@@ -52,14 +69,7 @@ const AdminLayout = () => {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 overflow-y-auto">
-        {/* Header Admin */}
-        <header className="bg-white shadow-sm h-16 flex items-center px-8 justify-between sticky top-0 z-10">
-            <h2 className="font-bold text-gray-700">Admin Control Panel</h2>
-            <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">Xin chào, Admin</span>
-                <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white font-bold">A</div>
-            </div>
-        </header>
+        
 
         {/* Nội dung thay đổi sẽ hiển thị ở đây */}
         <div className="p-6">
