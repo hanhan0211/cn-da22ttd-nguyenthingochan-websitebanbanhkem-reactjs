@@ -11,7 +11,7 @@ const axiosClient = axios.create({
   },
 });
 
-const Login = () => {
+const Login = ({ setCurrentUser }) => {  // Nhận setCurrentUser từ props
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -36,10 +36,9 @@ const Login = () => {
       const token = data.token || data.accessToken;
 
       // Lấy đúng thông tin user
-      // Backend chuẩn sẽ trả về: { token, user: {...} }
       let user = data.user;
 
-      // Nếu backend trả flat object (ít gặp), fallback
+      // Fallback nếu backend trả về object không đúng định dạng
       if (!user && data.email) {
         user = {
           id: data.id || data._id,
@@ -57,6 +56,9 @@ const Login = () => {
 
       localStorage.setItem("ACCESS_TOKEN", token);
       localStorage.setItem("USER_INFO", JSON.stringify(user));
+
+      // Gọi setCurrentUser để cập nhật người dùng trong App
+      setCurrentUser(user);
 
       // Điều hướng theo role
       if (user.role === "admin") {
