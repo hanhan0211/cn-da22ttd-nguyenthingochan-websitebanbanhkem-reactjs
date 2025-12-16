@@ -43,9 +43,11 @@ import ContactManager from "./pages/admin/ContactManager";
 import UserManagement from "./pages/admin/UserManagement";
 import ReviewManager from "./pages/admin/ReviewManager";
 import BannerManager from "./pages/admin/BannerManager";
+import FlashSaleManager from "./pages/admin/FlashSaleManager";
 
 // ✅ 1. IMPORT FOOTER VỪA TẠO
 import Footer from "./components/Footer"; 
+
 
 // Hàm xử lý ảnh
 const getImageUrl = (path) => {
@@ -252,6 +254,7 @@ function App() {
             <Route path="users" element={<UserManagement />} />
             <Route path="reviews" element={<ReviewManager />} />
             <Route path="banners" element={<BannerManager />} />
+            <Route path="flash-sale" element={<FlashSaleManager />} />
           </Route>
 
           <Route path="*" element={<div className="text-center py-20">404 - Không tìm thấy trang</div>} />

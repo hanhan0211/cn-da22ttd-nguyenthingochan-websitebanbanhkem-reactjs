@@ -6,6 +6,9 @@ import Slider from "react-slick";
 import "slick-carousel/slick/slick.css"; 
 import "slick-carousel/slick/slick-theme.css";
 
+// ✅ 1. THÊM DÒNG NÀY ĐỂ IMPORT COMPONENT FLASH SALE
+import FlashSale from '../components/FlashSale';
+
 // Hàm helper ảnh
 const getImageUrl = (path) => {
     if (!path) return 'https://via.placeholder.com/500x500?text=No+Image';
@@ -13,8 +16,6 @@ const getImageUrl = (path) => {
     const cleanPath = path.replace(/\\/g, "/");
     return `http://localhost:5000${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
 };
-
-// ❌ ĐÃ XÓA FOOTER Ở ĐÂY
 
 const HomePage = () => {
   const [categories, setCategories] = useState([]);
@@ -112,6 +113,9 @@ const HomePage = () => {
         )}
       </section>
 
+      {/* ✅ 2. CHÈN FLASH SALE VÀO ĐÂY (Nằm giữa Banner và Features) */}
+      <FlashSale />
+
       {/* FEATURES */}
       <section className="py-16 bg-pink-50">
         <div className="container mx-auto px-6">
@@ -187,12 +191,7 @@ const HomePage = () => {
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-500" 
                       onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/300x300?text=No+Image'; }}
                     />
-                    <button className="absolute top-4 right-4 bg-white p-2 rounded-full shadow-md hover:text-pink-600 transition transform translate-x-10 group-hover:translate-x-0">
-                      <Heart size={20} />
-                    </button>
-                    <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur p-3 translate-y-full group-hover:translate-y-0 transition duration-300 flex justify-center">
-                      <button className="text-sm font-bold text-gray-800 uppercase tracking-wide hover:text-pink-600">Thêm vào giỏ</button>
-                    </div>
+                    
                   </div>
                   <h3 className="font-bold text-lg text-gray-800 mb-1 group-hover:text-pink-600 transition line-clamp-1">{product.name}</h3>
                   <p className="text-gray-500 text-sm mb-2">{product.category?.name || 'Bánh ngọt'}</p>
@@ -227,7 +226,6 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ❌ ĐÃ XÓA FOOTER Ở DƯỚI CÙNG NÀY */}
     </div>
   );
 };

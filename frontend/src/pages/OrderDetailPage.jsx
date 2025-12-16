@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
-    Loader, MapPin, CreditCard, ChevronLeft, Package, Phone, User, Calendar, 
+    Loader, MapPin, CreditCard, ChevronLeft, Package, Calendar, 
     RefreshCw, Star, ExternalLink 
 } from 'lucide-react';
 
@@ -17,7 +17,7 @@ const OrderDetailPage = () => {
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [processingItem, setProcessingItem] = useState(null); // Trạng thái loading cho từng nút Mua Lại
+    const [processingItem, setProcessingItem] = useState(null); 
 
     const currentUser = JSON.parse(localStorage.getItem("USER_INFO") || "{}");
     const isAdmin = currentUser?.role === 'admin';
@@ -39,7 +39,7 @@ const OrderDetailPage = () => {
         fetchOrder();
     }, [id]);
 
-    // ✅ HÀM MUA LẠI: Thêm sản phẩm vào giỏ hàng
+    // ✅ HÀM MUA LẠI: Thêm sản phẩm vào giỏ hàng và chuyển hướng
     const handleBuyAgain = async (item) => {
         const token = localStorage.getItem("ACCESS_TOKEN");
         if (!token) {
@@ -47,25 +47,24 @@ const OrderDetailPage = () => {
             return navigate("/login");
         }
 
-        // Lấy ID sản phẩm (Xử lý trường hợp item.product là Object hay String)
         const productId = item.product._id || item.product; 
 
-        setProcessingItem(item._id || productId); // Bật loading xoay xoay tại nút đó
+        setProcessingItem(item._id || productId); 
 
         try {
             await axios.post('http://localhost:5000/api/cart/add', {
                 productId: productId,
-                qty: 1, // Mặc định mua lại 1 cái (hoặc item.qty nếu muốn mua đúng số lượng cũ)
+                qty: 1, 
                 attrs: {}
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
-            // Cập nhật badge giỏ hàng trên Header (quan trọng)
             window.dispatchEvent(new Event("CART_UPDATED"));
 
-            // Chuyển hướng sang giỏ hàng ngay lập tức
-            navigate("/cart"); 
+            // 👇 [SỬA ĐOẠN NÀY]: Gửi kèm state chứa ID sản phẩm mới mua sang Cart
+            navigate("/cart", { state: { newProductId: productId } }); 
+
         } catch (err) {
             console.error(err);
             alert("Sản phẩm này có thể đã hết hàng hoặc bị xóa.");
@@ -113,7 +112,7 @@ const OrderDetailPage = () => {
                 </div>
 
                 <div className="p-6 grid lg:grid-cols-3 gap-8">
-                    {/* CỘT TRÁI (Giữ nguyên) */}
+                    {/* CỘT TRÁI */}
                     <div className="lg:col-span-1 space-y-6">
                         <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
                             <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-200 pb-3">
@@ -142,20 +141,15 @@ const OrderDetailPage = () => {
                         <h3 className="font-bold text-gray-800 mb-4 text-lg">Sản phẩm ({order.items.length})</h3>
                         <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
                             {order.items.map((item, idx) => {
-                                // Xác định link sản phẩm:
-                                // Nếu trong Order populate trả về object product có slug thì dùng slug
-                                // Nếu không thì dùng ID
                                 const productSlug = item.product?.slug;
                                 const productId = item.product?._id || item.product;
-                                
                                 const productLink = productSlug 
                                     ? `/san-pham/${productSlug}` 
-                                    : `/san-pham/${productId}`; // Fallback nếu không có slug
+                                    : `/san-pham/${productId}`;
 
                                 return (
                                     <div key={idx} className="flex flex-col sm:flex-row gap-4 p-4 border-b border-gray-200 last:border-0 bg-white items-start sm:items-center">
                                         
-                                        {/* Link ảnh */}
                                         <Link to={productLink} className="w-20 h-20 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 relative group">
                                             <img 
                                                 src={getImageUrl(item.image)} 
@@ -191,10 +185,10 @@ const OrderDetailPage = () => {
                                                     Mua lại
                                                 </button>
 
-                                                {/* NÚT ĐÁNH GIÁ - Chỉ hiện khi hoàn thành */}
+                                                {/* NÚT ĐÁNH GIÁ */}
                                                 {isCompleted && (
                                                     <Link 
-                                                        to={`${productLink}#reviews`} // ✅ KÈM #reviews ĐỂ CUỘN XUỐNG
+                                                        to={`${productLink}#reviews`}
                                                         className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-pink-50 text-pink-700 border border-pink-200 rounded hover:bg-pink-100 transition"
                                                     >
                                                         <Star size={14} /> Đánh giá

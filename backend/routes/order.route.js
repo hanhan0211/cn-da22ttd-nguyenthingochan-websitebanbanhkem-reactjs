@@ -1,28 +1,25 @@
 import express from "express";
+const router = express.Router();
+import { protect, admin } from "../middleware/auth.middleware.js";
+
+// 👇 SỬA DÒNG NÀY: Đổi createOrderFromCart thành addOrderItems
 import { 
-  createOrderFromCart, 
-  getOrder, 
-  listOrders, 
-  updateOrderStatus,
-  getDashboardStats // ✅ Import hàm mới
+    addOrderItems, // <--- Tên mới
+    getOrder, 
+    listOrders, 
+    updateOrderStatus,
+    getDashboardStats 
 } from "../controllers/order.controller.js"; 
 
-import { protect, admin } from "../middleware/auth.middleware.js"; 
-
-const router = express.Router();
-
-router.use(protect);
-
+// 👇 SỬA ROUTE TẠO ĐƠN:
 router.route("/")
-  .post(createOrderFromCart)
-  .get(listOrders);
+    .post(protect, addOrderItems) // <--- Thay tên cũ bằng addOrderItems
+    .get(protect, listOrders);
 
-// ✅ CHÈN ROUTE THỐNG KÊ Ở ĐÂY (TRƯỚC /:id)
-// Chỉ admin mới xem được thống kê
-router.get("/stats", admin, getDashboardStats);
+router.route("/dashboard").get(protect, admin, getDashboardStats);
 
 router.route("/:id")
-  .get(getOrder)
-  .put(admin, updateOrderStatus);
+    .get(protect, getOrder)
+    .put(protect, admin, updateOrderStatus); // Nếu route update của bạn dùng put
 
 export default router;

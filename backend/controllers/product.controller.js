@@ -11,37 +11,46 @@ export const createProduct = async (req, res, next) => {
       if (!cat) return res.status(400).json({ message: "Category không tồn tại" });
     }
     if (payload.name) payload.slug = slugify(payload.name, { lower: true });
-    if (req.files) {
+    
+    if (req.files && req.files.length > 0) {
       payload.images = req.files.map(file => ({
         url: `/uploads/${file.filename}`,
         alt: file.originalname,
       }));
     }
+    
     const product = await Product.create(payload);
     res.status(201).json(product);
   } catch (err) { next(err); }
 };
 
-// --- Update Product ---
+// --- Update Product (QUAN TRỌNG: Đã sửa để nhận full dữ liệu Flash Sale) ---
 export const updateProduct = async (req, res, next) => {
   try {
     const payload = req.body;
+    
     if (payload.category) {
       const cat = await Category.findById(payload.category);
       if (!cat) return res.status(400).json({ message: "Category không tồn tại" });
     }
     if (payload.name) payload.slug = slugify(payload.name, { lower: true });
-    if (req.files) {
+    
+    // Xử lý ảnh mới
+    if (req.files && req.files.length > 0) {
       const product = await Product.findById(req.params.id);
       if (!product) return res.status(404).json({ message: "Không tìm thấy product" });
+      
       const newImages = req.files.map(file => ({
         url: `/uploads/${file.filename}`,
         alt: file.originalname,
       }));
       payload.images = [ ...(product.images || []), ...newImages ];
     }
+
+    // Update với tham số { new: true } để trả về data mới nhất
     const updatedProduct = await Product.findByIdAndUpdate(req.params.id, payload, { new: true }).populate("category");
     if (!updatedProduct) return res.status(404).json({ message: "Không tìm thấy product" });
+    
     res.json(updatedProduct);
   } catch (err) { next(err); }
 };
@@ -73,63 +82,33 @@ export const getProductBySlug = async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Lỗi server" }); }
 };
 
-// ============================================================
-// ✅ LIST PRODUCTS (CHỈ LỌC MỚI NHẤT / CŨ NHẤT)
-// ============================================================
+// --- List Products ---
 export const listProducts = async (req, res, next) => {
   try {
-    const { 
-        page = 1, 
-        limit = 12, 
-        q, 
-        category, 
-        minPrice, 
-        maxPrice, 
-        sort, // <--- Nhận biến sort
-        featured,
-        flavor 
-    } = req.query;
+    const { page = 1, limit = 12, q, category, minPrice, maxPrice, sort, featured, flavor, flashSale } = req.query;
 
     const filter = {};
-
-    // 1. Bộ lọc cơ bản
     if (q) filter.name = { $regex: q, $options: "i" };
     if (category) filter.category = category;
     if (minPrice) filter.price = { ...filter.price, $gte: Number(minPrice) };
     if (maxPrice) filter.price = { ...filter.price, $lte: Number(maxPrice) };
     if (flavor) filter.flavor = flavor;
     if (featured === 'true') filter.avgRating = { $gte: 4 }; 
+    if (flashSale === 'true') filter.isFlashSale = true;
 
-    // 2. Xử lý sắp xếp (Mới nhất / Cũ nhất)
-    let sortCondition = { createdAt: -1 }; // Mặc định: Mới nhất (-1)
-
-    if (sort === 'oldest') {
-        sortCondition = { createdAt: 1 }; // Cũ nhất (1)
-    } else {
-        sortCondition = { createdAt: -1 }; // Mới nhất (-1)
-    }
-
-    // Ưu tiên xếp theo rating nếu đang xem trang nổi bật mà không chọn sort
-    if (featured === 'true' && !sort) {
-        sortCondition = { avgRating: -1 };
-    }
+    let sortCondition = { createdAt: -1 }; 
+    if (sort === 'oldest') sortCondition = { createdAt: 1 };
+    if (featured === 'true' && !sort) sortCondition = { avgRating: -1 };
 
     const skip = (page - 1) * limit;
     const total = await Product.countDocuments(filter);
     
     const items = await Product.find(filter)
       .populate("category")
-      .sort(sortCondition) // <--- Áp dụng sort
+      .sort(sortCondition)
       .skip(skip)
       .limit(Number(limit));
 
-    res.json({
-      items,
-      total,
-      page: Number(page),
-      pages: Math.ceil(total / limit),
-    });
-  } catch (err) {
-    next(err);
-  }
+    res.json({ items, total, page: Number(page), pages: Math.ceil(total / limit) });
+  } catch (err) { next(err); }
 };

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  Trash2, Minus, Plus, ShoppingBag, ArrowRight, CreditCard, CheckSquare, Square
+    Trash2, Minus, Plus, ShoppingBag, ArrowRight, CreditCard, CheckSquare, Square, Zap 
 } from 'lucide-react';
 
 // --- HELPER ---
@@ -17,11 +17,14 @@ const CartPage = () => {
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     
-    // Lưu danh sách ID các sản phẩm được chọn (Dạng String)
     const [selectedItems, setSelectedItems] = useState([]); 
     
     const navigate = useNavigate();
+    const location = useLocation();
     const getToken = () => localStorage.getItem("ACCESS_TOKEN");
+
+    // 🔥 CẤU HÌNH PHÍ SHIP CỐ ĐỊNH (Đồng bộ với Backend)
+    const SHIPPING_FEE = 25000;
 
     const fetchCart = async () => {
         const token = getToken();
@@ -45,25 +48,54 @@ const CartPage = () => {
         fetchCart();
     }, []);
 
-    // --- TÍNH TỔNG TIỀN (Chỉ tính những món có trong selectedItems) ---
-    const selectedTotal = useMemo(() => {
+    // Tự động tick chọn sản phẩm nếu được chuyển từ nút "Mua lại"
+    useEffect(() => {
+        if (cart && cart.items.length > 0 && location.state?.newProductId) {
+            const targetId = String(location.state.newProductId);
+            
+            const exists = cart.items.some(item => {
+                const id = String(item.product?._id || item.product);
+                return id === targetId;
+            });
+
+            if (exists) {
+                setSelectedItems([targetId]);
+                window.history.replaceState({}, document.title);
+            }
+        }
+    }, [cart, location.state]);
+
+    // Hàm lấy giá an toàn
+    const getRealPrice = (item) => {
+        if (!item.product) return 0;
+        const p = item.product;
+        if (p.isFlashSale) return p.flashSalePrice || 0;
+        if (p.salePrice > 0 && p.salePrice < p.price) return p.salePrice || 0;
+        return p.price || 0;
+    };
+
+    // --- TÍNH TỔNG TIỀN HÀNG (TẠM TÍNH) ---
+    const subTotal = useMemo(() => {
         if (!cart || !cart.items) return 0;
         return cart.items.reduce((total, item) => {
-            if (!item.product) return total; // Bỏ qua sản phẩm lỗi
-
-            // ✅ ÉP KIỂU STRING ĐỂ SO SÁNH CHÍNH XÁC
+            if (!item.product) return total; 
             const productId = String(item.product._id || item.product);
             
             if (selectedItems.includes(productId)) { 
-                return total + (item.price * item.qty);
+                const realPrice = getRealPrice(item);
+                return total + (realPrice * item.qty);
             }
             return total;
         }, 0);
     }, [cart, selectedItems]);
 
+    // --- TỔNG THANH TOÁN (Hàng + Ship) ---
+    // Chỉ cộng ship khi có ít nhất 1 sản phẩm được chọn
+    const finalTotal = selectedItems.length > 0 ? subTotal + SHIPPING_FEE : 0;
+
     // --- CHỌN 1 SẢN PHẨM ---
     const handleSelectItem = (rawId) => {
-        const productId = String(rawId); // Luôn ép về String
+        const productId = String(rawId); 
         if (selectedItems.includes(productId)) {
             setSelectedItems(selectedItems.filter(id => id !== productId));
         } else {
@@ -75,40 +107,57 @@ const CartPage = () => {
     const handleSelectAll = () => {
         if (!cart || !cart.items) return;
         
-        // Lấy danh sách ID hợp lệ (ép về String hết)
         const validItemIds = cart.items
             .filter(item => item.product)
             .map(item => String(item.product._id || item.product));
 
         if (selectedItems.length === validItemIds.length) {
-            setSelectedItems([]); // Bỏ chọn hết
+            setSelectedItems([]); 
         } else {
-            setSelectedItems(validItemIds); // Chọn hết
+            setSelectedItems(validItemIds); 
         }
     };
 
-    // --- NÚT MUA HÀNG (QUAN TRỌNG NHẤT) ---
+    // --- NÚT MUA HÀNG ---
     const handleCheckout = () => {
         if (selectedItems.length === 0) {
             alert("Bạn chưa chọn sản phẩm nào để thanh toán!");
             return;
         }
         
-        // ✅ FIX LỖI GỘP ĐƠN: Lọc kỹ càng dựa trên String ID
         const itemsToCheckout = cart.items.filter(item => {
             if (!item.product) return false;
             const productId = String(item.product._id || item.product);
             return selectedItems.includes(productId);
         });
 
-        console.log("Sản phẩm chuyển sang thanh toán:", itemsToCheckout); // Debug xem đúng chưa
+        const checkoutItemsWithRealPrice = itemsToCheckout.map(item => ({
+            ...item,
+            price: getRealPrice(item)
+        }));
 
-        // Chuyển sang trang Checkout với đúng danh sách đã lọc
-        navigate('/checkout', { state: { items: itemsToCheckout, total: selectedTotal } });
+        // Truyền sang checkout: item, tạm tính (subTotal) và tổng (finalTotal)
+        navigate('/checkout', { 
+            state: { 
+                items: checkoutItemsWithRealPrice, 
+                subTotal: subTotal,
+                total: finalTotal, // Truyền tổng đã cộng ship
+                shippingFee: SHIPPING_FEE
+            } 
+        });
     };
 
+    // Xử lý nút tăng giảm
     const handleUpdateQty = async (index, newQty) => {
-        if (newQty < 1 || updating) return;
+        if (updating) return;
+
+        if (newQty < 1) {
+            const item = cart.items[index];
+            if (!item || !item.product) return;
+            const productId = item.product._id || item.product;
+            return handleRemoveItem(productId);
+        }
+
         const token = getToken();
         setUpdating(true);
         try {
@@ -133,25 +182,21 @@ const CartPage = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCart(res.data);
-            // Xóa khỏi danh sách đang chọn nếu có
             setSelectedItems(selectedItems.filter(id => id !== productId));
         } catch (err) {
             console.error("Lỗi xóa:", err);
         }
     };
 
-    // Hàm xóa item bị lỗi (null product)
     const handleRemoveInvalidItem = async (itemId) => {
          const token = getToken();
          try {
-             // Gọi API xóa (có thể backend cần xử lý riêng cho trường hợp này)
              const res = await axios.delete(`http://localhost:5000/api/cart/item/${itemId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCart(res.data);
          } catch(err) {
              console.log("Không thể xóa item lỗi tự động", err);
-             // Nếu API lỗi, reload lại trang để đồng bộ
              window.location.reload();
          }
     }
@@ -179,7 +224,6 @@ const CartPage = () => {
         );
     }
 
-    // Tính số lượng item hợp lệ
     const validItemsCount = cart.items.filter(i => i.product).length;
 
     return (
@@ -209,7 +253,6 @@ const CartPage = () => {
                         </div>
 
                         {cart.items.map((item, index) => {
-                            // CHECK ITEM LỖI (Sản phẩm bị xóa khỏi DB)
                             if (!item.product) {
                                 return (
                                     <div key={index} className="bg-red-50 p-4 rounded-2xl border border-red-100 flex justify-between items-center">
@@ -219,10 +262,12 @@ const CartPage = () => {
                                 )
                             }
 
-                            // ✅ LUÔN ÉP KIỂU STRING ĐỂ SO SÁNH
                             const rawId = item.product._id || item.product;
                             const productId = String(rawId);
                             const isSelected = selectedItems.includes(productId);
+                            
+                            const realPrice = getRealPrice(item);
+                            const isFlashSale = item.product.isFlashSale;
 
                             return (
                                 <div key={index} className={`bg-white p-4 rounded-2xl shadow-sm border transition-all flex gap-4 items-center ${isSelected ? 'border-pink-300 ring-1 ring-pink-100' : 'border-gray-100'}`}>
@@ -237,14 +282,31 @@ const CartPage = () => {
                                     </button>
 
                                     {/* ẢNH SẢN PHẨM */}
-                                    <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-100">
+                                    <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border border-gray-100 relative">
                                         <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" onError={(e) => {e.target.src = 'https://via.placeholder.com/150'}} />
+                                        {isFlashSale && <div className="absolute top-0 left-0 bg-yellow-400 text-red-600 text-[10px] font-bold px-1 rounded-br">Flash Sale</div>}
                                     </div>
 
                                     {/* THÔNG TIN */}
                                     <div className="flex-grow">
                                         <h3 className="font-bold text-gray-800 text-lg mb-1">{item.name}</h3>
-                                        <div className="text-pink-600 font-bold">{item.price?.toLocaleString()}đ</div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                            <span className={`font-bold ${isFlashSale ? 'text-red-600' : 'text-pink-600'}`}>
+                                                {(realPrice || 0).toLocaleString()}đ
+                                            </span>
+                                            {realPrice < (item.product.price || 0) && (
+                                                <span className="text-gray-400 text-sm line-through">
+                                                    {(item.product.price || 0).toLocaleString()}đ
+                                                </span>
+                                            )}
+                                        </div>
+                                        
+                                        {isFlashSale && (
+                                            <div className="text-xs text-orange-500 flex items-center gap-1 mt-1 font-medium">
+                                                <Zap size={12} fill="currentColor"/> Đang trong Flash Sale
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* TĂNG GIẢM / XÓA */}
@@ -280,16 +342,26 @@ const CartPage = () => {
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100 sticky top-24">
                             <h3 className="font-bold text-xl mb-6 text-gray-800">Thông tin đơn hàng</h3>
                             
-                            <div className="space-y-3 mb-6 border-b border-gray-100 pb-6">
+                            <div className="space-y-4 mb-6 border-b border-gray-100 pb-6">
+                                {/* Tạm tính */}
                                 <div className="flex justify-between text-gray-600">
-                                    <span>Đã chọn:</span>
-                                    <span className="font-medium">{selectedItems.length} món</span>
+                                    <span>Tạm tính ({selectedItems.length} món):</span>
+                                    <span className="font-medium">{subTotal.toLocaleString()}đ</span>
+                                </div>
+
+                                {/* Phí ship hiển thị rõ ràng */}
+                                <div className="flex justify-between text-gray-600">
+                                    <span>Phí vận chuyển:</span>
+                                    <span className="font-medium">
+                                        {selectedItems.length > 0 ? SHIPPING_FEE.toLocaleString() + 'đ' : '0đ'}
+                                    </span>
                                 </div>
                             </div>
 
+                            {/* Tổng cộng */}
                             <div className="flex justify-between items-center mb-8">
                                 <span className="font-bold text-gray-800 text-lg">Tổng thanh toán:</span>
-                                <span className="font-bold text-2xl text-pink-600">{selectedTotal.toLocaleString()}đ</span>
+                                <span className="font-bold text-2xl text-pink-600">{finalTotal.toLocaleString()}đ</span>
                             </div>
 
                             <button 
