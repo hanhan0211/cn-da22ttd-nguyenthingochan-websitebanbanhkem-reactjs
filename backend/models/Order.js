@@ -24,11 +24,19 @@ const orderSchema = new mongoose.Schema({
   shippingPrice: Number,
   taxPrice: Number,
   totalPrice: Number,
-  status: { type: String, enum: ["pending","completed","cancelled"], default: "pending" },
+  
+  // 🔥 SỬA DÒNG NÀY: Thêm "delivered" vào enum
+  status: { 
+      type: String, 
+      enum: ["pending", "delivered", "completed", "cancelled"], 
+      default: "pending" 
+  },
+  
   deliveredAt: Date,
   cancelledAt: Date
-}, { timestamps: true,
-  collection: 'orders'
- });
+}, { 
+    timestamps: true,
+    collection: 'orders' 
+});
 
 export default mongoose.model("Order", orderSchema);

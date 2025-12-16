@@ -2,6 +2,27 @@ import Product from "../models/Product.js";
 import Category from "../models/Category.js";
 import slugify from "slugify";
 
+// --- HELPER: Xử lý logic Flash Sale trước khi trả về Frontend ---
+const processProductData = (product) => {
+  if (!product) return null;
+  
+  // Chuyển Mongoose Document sang Object thường để chỉnh sửa
+  const p = product.toObject ? product.toObject() : product;
+  
+  const now = Date.now();
+  const start = p.flashSaleStartDate ? new Date(p.flashSaleStartDate).getTime() : 0;
+  const end = p.flashSaleEndTime ? new Date(p.flashSaleEndTime).getTime() : 0;
+
+  // Kiểm tra: Nếu ĐANG bật FlashSale NHƯNG thời gian không thỏa mãn
+  if (p.isFlashSale && (now < start || now > end)) {
+      // => Tắt Flash Sale ảo (chỉ trong response trả về, ko sửa DB)
+      p.isFlashSale = false; 
+      // Giá hiển thị sẽ quay về ưu tiên Sale thường hoặc Giá gốc
+  }
+  
+  return p;
+};
+
 // --- Create Product ---
 export const createProduct = async (req, res, next) => {
   try {
@@ -24,7 +45,7 @@ export const createProduct = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// --- Update Product (QUAN TRỌNG: Đã sửa để nhận full dữ liệu Flash Sale) ---
+// --- Update Product ---
 export const updateProduct = async (req, res, next) => {
   try {
     const payload = req.body;
@@ -35,7 +56,6 @@ export const updateProduct = async (req, res, next) => {
     }
     if (payload.name) payload.slug = slugify(payload.name, { lower: true });
     
-    // Xử lý ảnh mới
     if (req.files && req.files.length > 0) {
       const product = await Product.findById(req.params.id);
       if (!product) return res.status(404).json({ message: "Không tìm thấy product" });
@@ -47,7 +67,6 @@ export const updateProduct = async (req, res, next) => {
       payload.images = [ ...(product.images || []), ...newImages ];
     }
 
-    // Update với tham số { new: true } để trả về data mới nhất
     const updatedProduct = await Product.findByIdAndUpdate(req.params.id, payload, { new: true }).populate("category");
     if (!updatedProduct) return res.status(404).json({ message: "Không tìm thấy product" });
     
@@ -64,25 +83,29 @@ export const deleteProduct = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// --- Get Product by ID ---
+// --- Get Product by ID (Chi tiết sản phẩm) ---
 export const getProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id).populate("category");
     if (!product) return res.status(404).json({ message: "Không tìm thấy" });
-    res.json(product);
+    
+    // ✅ Xử lý thời gian trước khi trả về
+    res.json(processProductData(product));
   } catch (err) { next(err); }
 };
 
-// --- Get Product by Slug ---
+// --- Get Product by Slug (Chi tiết sản phẩm theo slug) ---
 export const getProductBySlug = async (req, res) => {
   try {
     const product = await Product.findOne({ slug: req.params.slug }).populate("category");
     if (!product) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
-    res.json(product);
+    
+    // ✅ Xử lý thời gian trước khi trả về
+    res.json(processProductData(product));
   } catch (err) { res.status(500).json({ message: "Lỗi server" }); }
 };
 
-// --- List Products ---
+// --- List Products (Trang danh sách / Shop / Search) ---
 export const listProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 12, q, category, minPrice, maxPrice, sort, featured, flavor, flashSale } = req.query;
@@ -94,6 +117,8 @@ export const listProducts = async (req, res, next) => {
     if (maxPrice) filter.price = { ...filter.price, $lte: Number(maxPrice) };
     if (flavor) filter.flavor = flavor;
     if (featured === 'true') filter.avgRating = { $gte: 4 }; 
+    
+    // Nếu client lọc flashSale=true, ta vẫn tìm trong DB trước
     if (flashSale === 'true') filter.isFlashSale = true;
 
     let sortCondition = { createdAt: -1 }; 
@@ -109,6 +134,21 @@ export const listProducts = async (req, res, next) => {
       .skip(skip)
       .limit(Number(limit));
 
-    res.json({ items, total, page: Number(page), pages: Math.ceil(total / limit) });
+    // ✅ Map qua từng sản phẩm để kiểm tra hạn sử dụng Flash Sale
+    // Nếu hết hạn -> Tự động chuyển isFlashSale = false
+    const processedItems = items.map(item => processProductData(item));
+
+    // (Tùy chọn) Nếu đang lọc flashSale=true, ta cần lọc lại lần nữa những cái vừa bị tắt active
+    let finalItems = processedItems;
+    if (flashSale === 'true') {
+        finalItems = processedItems.filter(p => p.isFlashSale === true);
+    }
+
+    res.json({ 
+        items: finalItems, 
+        total, 
+        page: Number(page), 
+        pages: Math.ceil(total / limit) 
+    });
   } catch (err) { next(err); }
 };

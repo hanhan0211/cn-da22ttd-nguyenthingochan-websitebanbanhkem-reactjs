@@ -1,28 +1,56 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-// ✅ Hàm 1: protect
-export const protect = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(" ")[1]; // Bearer token
+// =======================
+// VERIFY TOKEN
+// =======================
+export const verifyToken = async (req, res, next) => {
+  let token;
 
-    if (!token) return res.status(401).json({ message: "Không có token, không được phép" });
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    try {
+      token = req.headers.authorization.split(" ")[1];
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select("-password");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!req.user) return res.status(401).json({ message: "Token không hợp lệ" });
-    next();
-  } catch (err) {
-    res.status(401).json({ message: "Token hết hạn hoặc không hợp lệ" });
+      const user = await User.findById(decoded.id).select("-password");
+      if (!user) {
+        return res.status(401).json({ message: "Token không hợp lệ" });
+      }
+
+      req.user = user;
+      next();
+      return;
+    } catch (error) {
+      return res
+        .status(401)
+        .json({ message: "Token hết hạn hoặc không hợp lệ" });
+    }
   }
+
+  return res
+    .status(401)
+    .json({ message: "Không có token, quyền truy cập bị từ chối" });
 };
 
-// ✅ Hàm 2: admin (Chữ thường)
-export const admin = (req, res, next) => {
+// =======================
+// ADMIN CHECK
+// =======================
+export const isAdmin = (req, res, next) => {
   if (req.user && req.user.role === "admin") {
     next();
   } else {
-    return res.status(403).json({ message: "Bạn không có quyền truy cập" });
+    return res
+      .status(403)
+      .json({ message: "Quyền truy cập bị từ chối! Chỉ dành cho Admin." });
   }
 };
+
+/* =================================================
+   🔥 ALIAS EXPORT (CỨU TOÀN BỘ ROUTES CŨ)
+   ================================================= */
+export const protect = verifyToken;
+export const admin = isAdmin;

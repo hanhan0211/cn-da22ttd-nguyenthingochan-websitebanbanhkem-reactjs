@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { 
   Package, CheckCircle, XCircle, Clock, Eye, 
-  Search, Calendar, DollarSign 
+  Search, Calendar, Truck 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const OrderManager = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filterStatus, setFilterStatus] = useState('all'); // Bộ lọc trạng thái
+    const [filterStatus, setFilterStatus] = useState('all');
 
     useEffect(() => {
         fetchOrders();
@@ -29,30 +29,31 @@ const OrderManager = () => {
         }
     };
 
-    // Hàm cập nhật trạng thái đơn hàng
     const handleStatusChange = async (orderId, newStatus) => {
         try {
             const token = localStorage.getItem("ACCESS_TOKEN");
+            // Gọi route PUT /:id vừa fix
             await axios.put(`http://localhost:5000/api/orders/${orderId}`, 
                 { status: newStatus },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             
-            // Cập nhật lại UI sau khi đổi thành công
             setOrders(orders.map(order => 
                 order._id === orderId ? { ...order, status: newStatus } : order
             ));
             alert(`Đã cập nhật trạng thái đơn hàng thành: ${newStatus}`);
         } catch (error) {
+            console.error(error);
             alert("Lỗi cập nhật trạng thái!");
         }
     };
 
-    // Helper: Màu sắc badge trạng thái
     const getStatusBadge = (status) => {
         switch (status) {
             case 'pending':
                 return <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200"><Clock size={12}/> Chờ xử lý</span>;
+            case 'delivered':
+                return <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200"><Truck size={12}/> Đang giao hàng</span>;
             case 'completed':
                 return <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200"><CheckCircle size={12}/> Hoàn thành</span>;
             case 'cancelled':
@@ -62,7 +63,6 @@ const OrderManager = () => {
         }
     };
 
-    // Lọc đơn hàng theo select box
     const filteredOrders = filterStatus === 'all' 
         ? orders 
         : orders.filter(o => o.status === filterStatus);
@@ -79,7 +79,6 @@ const OrderManager = () => {
                     <p className="text-sm text-gray-500 mt-1">Tổng cộng: {orders.length} đơn hàng</p>
                 </div>
                 
-                {/* Bộ lọc trạng thái */}
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">Lọc theo:</span>
                     <select 
@@ -89,6 +88,7 @@ const OrderManager = () => {
                     >
                         <option value="all">Tất cả trạng thái</option>
                         <option value="pending">Chờ xử lý</option>
+                        <option value="delivered">Đang giao hàng</option>
                         <option value="completed">Hoàn thành</option>
                         <option value="cancelled">Đã hủy</option>
                     </select>
@@ -130,7 +130,6 @@ const OrderManager = () => {
                                     {order.totalPrice?.toLocaleString()}đ
                                 </td>
                                 <td className="p-4">
-                                    {/* Dropdown đổi trạng thái trực tiếp */}
                                     <div className="flex flex-col gap-2">
                                         {getStatusBadge(order.status)}
                                         <select 
@@ -138,14 +137,14 @@ const OrderManager = () => {
                                             onChange={(e) => handleStatusChange(order._id, e.target.value)}
                                             className="text-xs border border-gray-200 rounded px-1 py-1 mt-1 cursor-pointer hover:border-pink-400 focus:outline-none"
                                         >
-                                            <option value="pending">Đang xử lý</option>
+                                            <option value="pending">Chờ xử lý</option>
+                                            <option value="delivered">Đang giao hàng</option>
                                             <option value="completed">Đã giao xong</option>
                                             <option value="cancelled">Hủy đơn</option>
                                         </select>
                                     </div>
                                 </td>
                                 <td className="p-4 text-center">
-                                    {/* Link xem chi tiết - Dùng chung trang OrderDetailPage */}
                                     <Link 
                                         to={`/order/${order._id}`} 
                                         className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
@@ -158,15 +157,11 @@ const OrderManager = () => {
                         ))}
                     </tbody>
                 </table>
-
                 {filteredOrders.length === 0 && (
-                    <div className="text-center py-10 text-gray-400">
-                        Không tìm thấy đơn hàng nào.
-                    </div>
+                    <div className="text-center py-10 text-gray-400">Không tìm thấy đơn hàng nào.</div>
                 )}
             </div>
         </div>
     );
 };
-
 export default OrderManager;

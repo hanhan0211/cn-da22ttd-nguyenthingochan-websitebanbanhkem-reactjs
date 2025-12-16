@@ -1,25 +1,36 @@
 import express from "express";
-const router = express.Router();
-import { protect, admin } from "../middleware/auth.middleware.js";
-
-// 👇 SỬA DÒNG NÀY: Đổi createOrderFromCart thành addOrderItems
+import { verifyToken, isAdmin } from "../middleware/auth.middleware.js"; 
 import { 
-    addOrderItems, // <--- Tên mới
+    addOrderItems, 
     getOrder, 
     listOrders, 
-    updateOrderStatus,
-    getDashboardStats 
-} from "../controllers/order.controller.js"; 
+    updateOrderStatus, 
+    getDashboardStats,
+    cancelOrder 
+} from "../controllers/order.controller.js";
 
-// 👇 SỬA ROUTE TẠO ĐƠN:
-router.route("/")
-    .post(protect, addOrderItems) // <--- Thay tên cũ bằng addOrderItems
-    .get(protect, listOrders);
+const router = express.Router();
 
-router.route("/dashboard").get(protect, admin, getDashboardStats);
+// Tạo đơn hàng
+router.post("/", verifyToken, addOrderItems);
 
-router.route("/:id")
-    .get(protect, getOrder)
-    .put(protect, admin, updateOrderStatus); // Nếu route update của bạn dùng put
+// Lấy danh sách (Admin xem hết, User xem của mình)
+router.get("/", verifyToken, listOrders);
+
+// Thống kê Dashboard (Chỉ Admin)
+router.get("/stats", verifyToken, isAdmin, getDashboardStats);
+
+// Lấy chi tiết 1 đơn
+router.get("/:id", verifyToken, getOrder);
+
+// ✅ Cập nhật trạng thái đơn hàng (Admin) - Fix lỗi 404
+router.put("/:id", verifyToken, isAdmin, updateOrderStatus); 
+
+// Hủy đơn hàng (User)
+router.put("/:id/cancel", verifyToken, cancelOrder);
+
+// (Optional) Các route cũ nếu bạn còn dùng nút riêng lẻ ở đâu đó, nếu không thì bỏ cũng được
+router.put("/:id/pay", verifyToken, updateOrderStatus); 
+router.put("/:id/deliver", verifyToken, isAdmin, updateOrderStatus);
 
 export default router;

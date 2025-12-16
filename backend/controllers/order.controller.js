@@ -3,7 +3,7 @@ import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
 import User from "../models/User.js";
 
-// ✅ 1. TẠO ĐƠN HÀNG (Clean code, Ship 25k, Fix Flash Sale)
+// --- 1. TẠO ĐƠN HÀNG (Đã tích hợp Flash Sale & Phí Ship) ---
 export const addOrderItems = async (req, res, next) => {
   try {
     const { orderItems, shippingAddress, paymentMethod, taxPrice } = req.body;
@@ -82,53 +82,98 @@ export const addOrderItems = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// --- CÁC HÀM KHÁC (Giữ nguyên) ---
-
+// --- 2. LẤY CHI TIẾT 1 ĐƠN HÀNG ---
 export const getOrder = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id).populate("user", "name email").populate("items.product");
     if (!order) return res.status(404).json({ message: "Không tìm thấy order" });
-    if (req.user.role !== "admin" && !order.user._id.equals(req.user.id)) return res.status(403).json({ message: "Không có quyền" });
+    
+    // Chỉ Admin hoặc chủ đơn hàng mới xem được
+    if (req.user.role !== "admin" && !order.user._id.equals(req.user._id)) {
+        return res.status(403).json({ message: "Không có quyền" });
+    }
+    
     res.json(order);
   } catch (err) { next(err); }
 };
 
+// --- 3. LẤY DANH SÁCH ĐƠN HÀNG ---
 export const listOrders = async (req, res, next) => {
   try {
     const filter = {};
-    if (req.user.role !== "admin") filter.user = req.user.id;
+    // Nếu không phải admin thì chỉ lấy đơn của chính mình
+    if (req.user.role !== "admin") filter.user = req.user._id;
+    
     const orders = await Order.find(filter).sort("-createdAt").limit(100);
     res.json(orders);
   } catch (err) { next(err); }
 };
 
+// --- 4. CẬP NHẬT TRẠNG THÁI (ADMIN) ---
 export const updateOrderStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: "Không tìm thấy order" });
-    order.status = status;
-    if (status === "completed" || status === "delivered") order.deliveredAt = new Date();
-    if (status === "cancelled") order.cancelledAt = new Date();
-    await order.save();
-    res.json(order);
-  } catch (err) { next(err); }
-};
+    
+    // 🔥 QUAN TRỌNG: Thêm .populate("user") để lấy thông tin email khách hàng
+    const order = await Order.findById(req.params.id).populate("user", "email name");
 
+    if (!order) {
+        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    }
+
+    order.status = status;
+
+    if (status === "delivered") {
+        // Trạng thái đang giao hàng
+    }
+
+    if (status === "completed") {
+      order.deliveredAt = Date.now();
+      
+      if (order.paymentMethod === 'cod') {
+          order.paymentResult = { 
+              status: 'completed', 
+              update_time: Date.now(), 
+              // Giờ order.user đã có dữ liệu nhờ populate
+              email_address: order.user?.email || "guest@example.com" 
+          };
+      }
+    }
+
+    if (status === "cancelled") {
+      order.cancelledAt = Date.now();
+    }
+
+    const updatedOrder = await order.save();
+    res.json(updatedOrder);
+  } catch (err) { 
+      console.error("Lỗi update status:", err); // Log lỗi ra terminal để dễ debug
+      next(err); 
+  }
+};
+// --- 5. THỐNG KÊ DASHBOARD ---
 export const getDashboardStats = async (req, res, next) => {
   try {
     const totalUsers = await User.countDocuments({ role: "user" });
     const totalProducts = await Product.countDocuments();
     const totalOrders = await Order.countDocuments();
+    
+    // Doanh thu
     const revenueAgg = await Order.aggregate([{ $match: { status: "completed" } }, { $group: { _id: null, total: { $sum: "$totalPrice" } } }]);
     const totalRevenue = revenueAgg.length > 0 ? revenueAgg[0].total : 0;
+    
+    // Biểu đồ doanh thu 7 ngày
     const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const dailyRevenue = await Order.aggregate([
       { $match: { status: "completed", updatedAt: { $gte: sevenDaysAgo } } },
       { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } }, revenue: { $sum: "$totalPrice" } } },
       { $sort: { _id: 1 } },
     ]);
+
+    // Đơn mới nhất
     const recentOrders = await Order.find().select("user totalPrice status createdAt").populate("user", "name email").sort({ createdAt: -1 }).limit(5);
+    
+    // Top sản phẩm
     const topProducts = await Order.aggregate([
       { $match: { status: "completed" } }, { $unwind: "$items" },
       { $group: { _id: "$items.product", totalSold: { $sum: "$items.qty" } } },
@@ -137,6 +182,35 @@ export const getDashboardStats = async (req, res, next) => {
       { $unwind: "$productInfo" },
       { $project: { _id: 1, totalSold: 1, name: "$productInfo.name", price: "$productInfo.price", image: { $arrayElemAt: ["$productInfo.images.url", 0] } } },
     ]);
+
     res.json({ counts: { users: totalUsers, products: totalProducts, orders: totalOrders, revenue: totalRevenue }, chartData: dailyRevenue, recentOrders, topProducts });
+  } catch (err) { next(err); }
+};
+
+// --- 6. HỦY ĐƠN HÀNG (USER) ---
+export const cancelOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    }
+
+    // Kiểm tra quyền: Chỉ chủ đơn hoặc Admin
+    if (req.user.role !== "admin" && !order.user.equals(req.user._id)) {
+      return res.status(403).json({ message: "Bạn không có quyền hủy đơn hàng này" });
+    }
+
+    // Chỉ hủy khi còn Pending
+    if (order.status !== "pending") {
+      return res.status(400).json({ message: "Không thể hủy đơn hàng đã được giao hoặc hoàn thành" });
+    }
+
+    order.status = "cancelled";
+    order.cancelledAt = Date.now();
+    
+    const updatedOrder = await order.save();
+    res.json({ message: "Đã hủy đơn hàng thành công", order: updatedOrder });
+
   } catch (err) { next(err); }
 };
