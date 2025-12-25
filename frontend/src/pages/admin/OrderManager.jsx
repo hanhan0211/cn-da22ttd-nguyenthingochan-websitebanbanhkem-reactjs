@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { 
   Package, CheckCircle, XCircle, Clock, Eye, 
-  Search, Calendar, Truck 
+  Search, Calendar, Truck, Trash2 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -32,7 +32,6 @@ const OrderManager = () => {
     const handleStatusChange = async (orderId, newStatus) => {
         try {
             const token = localStorage.getItem("ACCESS_TOKEN");
-            // Gọi route PUT /:id vừa fix
             await axios.put(`http://localhost:5000/api/orders/${orderId}`, 
                 { status: newStatus },
                 { headers: { Authorization: `Bearer ${token}` } }
@@ -45,6 +44,25 @@ const OrderManager = () => {
         } catch (error) {
             console.error(error);
             alert("Lỗi cập nhật trạng thái!");
+        }
+    };
+
+    // --- HÀM XÓA ĐƠN HÀNG ---
+    const handleDeleteOrder = async (orderId) => {
+        if (window.confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa vĩnh viễn đơn hàng này? Hành động này không thể hoàn tác.")) {
+            try {
+                const token = localStorage.getItem("ACCESS_TOKEN");
+                await axios.delete(`http://localhost:5000/api/orders/${orderId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                // Cập nhật lại danh sách sau khi xóa
+                setOrders(orders.filter(order => order._id !== orderId));
+                alert("Đã xóa đơn hàng thành công!");
+            } catch (error) {
+                console.error("Lỗi xóa đơn hàng:", error);
+                alert("Lỗi khi xóa đơn hàng. Vui lòng thử lại!");
+            }
         }
     };
 
@@ -145,13 +163,24 @@ const OrderManager = () => {
                                     </div>
                                 </td>
                                 <td className="p-4 text-center">
-                                    <Link 
-                                        to={`/order/${order._id}`} 
-                                        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
-                                        title="Xem chi tiết"
-                                    >
-                                        <Eye size={16} />
-                                    </Link>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Link 
+                                            to={`/order/${order._id}`} 
+                                            className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                                            title="Xem chi tiết"
+                                        >
+                                            <Eye size={16} />
+                                        </Link>
+
+                                        {/* Nút Xóa */}
+                                        <button 
+                                            onClick={() => handleDeleteOrder(order._id)}
+                                            className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition"
+                                            title="Xóa đơn hàng"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

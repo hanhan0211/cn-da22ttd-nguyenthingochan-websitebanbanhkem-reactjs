@@ -144,9 +144,9 @@ const ContactPage = () => {
                 <div className="container mx-auto max-w-6xl">
                     <h1 className="text-3xl font-extrabold text-gray-800 mb-6 text-center">Liên Hệ <span className="text-pink-600">HanHan Bakery</span></h1>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <InfoCard icon={MapPin} title="Cửa hàng" desc="123 Đường Bánh, Q.1" sub="TP.HCM" color="bg-pink-500" />
-                        <InfoCard icon={Phone} title="Hotline" desc="1900 123 456" sub="8:00 - 22:00" color="bg-orange-400" />
-                        <InfoCard icon={Mail} title="Email" desc="help@hanhan.com" sub="Phản hồi 24h" color="bg-blue-500" />
+                        <InfoCard icon={MapPin} title="Cửa hàng" desc="Số 126 Nguyễn Thiện Thành, khóm 4, phường Hòa Thuận, Vĩnh Long, Việt Nam" sub="Vĩnh Long" color="bg-pink-500" />
+                        <InfoCard icon={Phone} title="Hotline" desc="0999 999 999" sub="8:00 - 22:00" color="bg-orange-400" />
+                        <InfoCard icon={Mail} title="Email" desc="contac@hanhanbakery.com" sub="Phản hồi 24h" color="bg-blue-500" />
                     </div>
                 </div>
             </div>

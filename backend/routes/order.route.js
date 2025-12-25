@@ -7,7 +7,8 @@ import {
     updateOrderStatus, 
     getDashboardStats,
     cancelOrder,
-    confirmOrder // <--- MỚI: Import hàm xác nhận
+    confirmOrder,
+    deleteOrder
 } from "../controllers/order.controller.js";
 
 const router = express.Router();
@@ -32,5 +33,6 @@ router.put("/:id", verifyToken, isAdmin, updateOrderStatus);
 
 // 7. Hủy đơn hàng (User)
 router.put("/:id/cancel", verifyToken, cancelOrder);
+router.delete("/:id", verifyToken, isAdmin, deleteOrder);
 
 export default router;

@@ -231,3 +231,17 @@ export const getDashboardStats = async (req, res, next) => {
     res.json({ counts: { users: totalUsers, products: totalProducts, orders: totalOrders, revenue: totalRevenue }, chartData: dailyRevenue, recentOrders, topProducts });
   } catch (err) { next(err); }
 };
+// --- 8. XÓA ĐƠN HÀNG (ADMIN) ---
+export const deleteOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng để xóa" });
+    }
+
+    res.json({ message: "Đã xóa đơn hàng thành công" });
+  } catch (err) {
+    next(err);
+  }
+};
